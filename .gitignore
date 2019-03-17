@@ -1,0 +1,13 @@
+# dependencies
+node_modules
+
+# config
+config/config.js
+
+# error
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# os x files
+.DS_Store

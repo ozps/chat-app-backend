@@ -1,0 +1,19 @@
+{
+    "name": "chat-app-backend",
+    "version": "1.0.0",
+    "main": "server.js",
+    "author": "Oz",
+    "license": "MIT",
+    "dependencies": {
+        "body-parser": "^1.18.3",
+        "cors": "^2.8.5",
+        "express": "^4.16.4",
+        "mongoose": "^5.4.19",
+        "nodemon": "^1.18.10",
+        "socket.io": "^2.2.0"
+    },
+    "scripts": {
+        "start": "node server.js",
+        "server": "nodemon server.js"
+    }
+}
