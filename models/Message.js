@@ -4,11 +4,9 @@ const messageSchema = new Schema(
     {
         username: String,
         roomID: String,
-        isLeave: Boolean,
-        message: String,
-        timestamp: Date
+        message: String
     },
-    { versionKey: false }
+    { versionKey: false, timestamps: true }
 )
 
 module.exports = mongoose.model('Message', messageSchema, 'Message')
