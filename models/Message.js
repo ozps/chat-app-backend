@@ -4,6 +4,7 @@ const messageSchema = new Schema(
     {
         username: String,
         roomID: String,
+        isLeave: Boolean,
         message: String,
         timestamp: Date
     },

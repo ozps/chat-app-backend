@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html')
 })
 
-io.on('connection', ioConnection)
+io.on('connect', ioConnection)
 
 server.listen(3000, function() {
     console.log('listening on *:3000')
