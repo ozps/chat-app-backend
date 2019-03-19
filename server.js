@@ -61,12 +61,25 @@ const getLastSeen = async ({ username, roomID }) => {
     return results
 }
 
+const getAllGroups = async () => {
+    let results = new Set()
+    await Message.find({}, (error, messages) => {
+        if (error) throw error
+        for (let m of messages) {
+            results.add(m.roomID)
+        }
+    })
+    return results
+}
+
 io.set('transports', ['websocket'])
 io.on('connection', socket => {
     console.log('connected')
 
-    socket.on('register', username => {
+    socket.on('register', async username => {
         console.log('client register...', username)
+        const groups = await getAllGroups()
+        await socket.emit('group', { groups })
     })
 
     socket.on('message', async message => {
@@ -86,9 +99,12 @@ io.on('connection', socket => {
     socket.on('join', async ({ username, roomID }) => {
         const messages = await getMessages(roomID)
         const seen = await getLastSeen(username, roomID)
+        const groups = await getAllGroups()
+        await groups.add(roomID)
         await socket.join(roomID)
         await io.to(roomID).emit('announce', `JOIN : ${socket.id}`)
         await socket.emit('initial', { messages, seen })
+        await socket.emit('group', { groups })
     })
 
     socket.on('exit', async ({ username, roomID }) => {
