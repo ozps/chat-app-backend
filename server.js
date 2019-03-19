@@ -25,23 +25,23 @@ const getMessages = roomID => {
     const messages = Message.find({ roomID: roomID })
     return messages.map(message => {
         return {
-            sender: message.username,
-            timestamp: message._id.getTimestamp(),
-            text: message.message,
-            roomID
+            username: message.username,
+            roomID: message.roomID,
+            content: message.message,
+            timestamp: message._id.getTimestamp()
         }
     })
 }
 
-const seen = (username, roomID) => {
+const seen = async (username, roomID) => {
     const seen = getSeen(username, roomID)
-    seen.lastSeen = new Date()
-    seen.save
+    seen.lastSeen = await new Date()
+    await seen.save
     return seen
 }
 
-const getSeen = (username, roomID) => {
-    const seen = Seen.findOne({ username, roomID })
+const getSeen = async (username, roomID) => {
+    const seen = await Seen.findOne({ username, roomID })
     return seen || new Seen(username, roomID, new Date())
 }
 
@@ -54,27 +54,24 @@ io.on('connection', socket => {
 
     socket.on('message', async message => {
         const { username, roomID, content } = message
-        console.log('client send msg...', data)
+        console.log('client send msg...', message)
         const msg = new Message({
             username: username,
             roomID: roomID,
             message: content
         })
-        await msg.save()
-        message.timestamp = await msg.timestamps.createdAt
+        await msg.save((err, msg) => {
+            message.timestamp = msg._id.getTimestamp()
+        })
         await io.to(roomID).emit('message', message)
     })
 
-    // socket.join(roomID)
-    // const [messages, read] = await Promise.all([
-    //     getMessages(roomID),
-    //     seen(username, roomID)
-    // ])
-    // socket.emit('initial', { messages, read })
-
-    socket.on('join', roomID => {
+    socket.on('join', ({ username, roomID }) => {
+        const messages = getMessages(roomID)
+        const seen = seen(username, roomID)
         socket.join(roomID)
         io.to(roomID).emit('announce', `JOIN : ${socket.id}`)
+        socket.emit('initial', { messages, seen })
     })
 
     socket.on('leave', roomID => {
