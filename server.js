@@ -38,17 +38,16 @@ const getMessages = async roomID => {
     return results
 }
 
-// const setLastSeen = async (username, roomID) => {
-//     const seen = getSeen(username, roomID)
-//     seen.lastSeen = await new Date()
-//     await seen.save
-//     return seen
-// }
-
-// const getSeen = async (username, roomID) => {
-//     const seen = await Seen.findOne({ username, roomID })
-//     return seen || new Seen(username, roomID, new Date())
-// }
+const setLastSeen = async ({ username, roomID, timestamp }) => {
+    await Seen.findOneAndUpdate(
+        { username: username, roomID: roomID },
+        { lastSeen: timestamp },
+        (error, seen) => {
+            if (error) throw error
+            console.log(seen.lastSeen)
+        }
+    )
+}
 
 const getLastSeen = async ({ username, roomID }) => {
     let results = []
@@ -62,6 +61,7 @@ const getLastSeen = async ({ username, roomID }) => {
     return results
 }
 
+io.set('transports', ['websocket'])
 io.on('connection', socket => {
     console.log('connected')
 
@@ -85,10 +85,15 @@ io.on('connection', socket => {
 
     socket.on('join', async ({ username, roomID }) => {
         const messages = await getMessages(roomID)
-        const seen = getLastSeen(username, roomID)
-        socket.join(roomID)
-        io.to(roomID).emit('announce', `JOIN : ${socket.id}`)
-        socket.emit('initial', { messages, seen })
+        const seen = await getLastSeen(username, roomID)
+        await socket.join(roomID)
+        await io.to(roomID).emit('announce', `JOIN : ${socket.id}`)
+        await socket.emit('initial', { messages, seen })
+    })
+
+    socket.on('exit', async ({ username, roomID }) => {
+        await setLastSeen(username, roomID)
+        await io.to(roomID).emit('announce', `EXIT : ${socket.id}`)
     })
 
     socket.on('leave', roomID => {
