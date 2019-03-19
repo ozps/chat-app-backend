@@ -45,30 +45,32 @@ const getSeen = (username, roomID) => {
     return seen || new Seen(username, roomID, new Date())
 }
 
-io.on('connection', async socket => {
-    const username = socket.handshake.query.username || Math.random().toFixed(4)
-    const roomID = socket.handshake.query.roomID || 'global'
-
+io.on('connection', socket => {
     console.log('connected')
 
-    socket.join(roomID)
-    const [messages, read] = await Promise.all([
-        getMessages(roomID),
-        seen(username, roomID)
-    ])
-    socket.emit('initial', { messages, read })
+    socket.on('register', username => {
+        console.log('client register...', username)
+    })
 
-    socket.on('message', async event => {
-        const { roomID, message } = event
+    socket.on('message', async message => {
+        const { username, roomID, content } = message
+        console.log('client send msg...', data)
         const msg = new Message({
             username: username,
             roomID: roomID,
-            message: message
+            message: content
         })
         await msg.save()
-        message.timestamp = msg.timestamps.createdAt
-        io.to(roomID).emit('message', message)
+        message.timestamp = await msg.timestamps.createdAt
+        await io.to(roomID).emit('message', message)
     })
+
+    // socket.join(roomID)
+    // const [messages, read] = await Promise.all([
+    //     getMessages(roomID),
+    //     seen(username, roomID)
+    // ])
+    // socket.emit('initial', { messages, read })
 
     socket.on('join', roomID => {
         socket.join(roomID)
