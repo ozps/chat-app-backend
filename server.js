@@ -62,11 +62,11 @@ const getLastSeen = async ({ username, roomID }) => {
 }
 
 const getAllGroups = async () => {
-    let results = new Set()
+    let results = []
     await Message.find({}, (error, messages) => {
         if (error) throw error
         for (let m of messages) {
-            results.add(m.roomID)
+            if (!results.includes(m.roomID)) results.push(m.roomID)
         }
     })
     return results
@@ -100,7 +100,7 @@ io.on('connection', socket => {
         const messages = await getMessages(roomID)
         const seen = await getLastSeen(username, roomID)
         const groups = await getAllGroups()
-        await groups.add(roomID)
+        if (!groups.includes(roomID)) await groups.push(roomID)
         await socket.join(roomID)
         await io.to(roomID).emit('announce', `JOIN : ${socket.id}`)
         await socket.emit('initial', { messages, seen })
