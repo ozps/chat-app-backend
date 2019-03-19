@@ -21,16 +21,21 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html')
 })
 
-const getMessages = roomID => {
-    const messages = Message.find({ roomID: roomID })
-    return messages.map(message => {
-        return {
-            username: message.username,
-            roomID: message.roomID,
-            content: message.message,
-            timestamp: message._id.getTimestamp()
+const getMessages = async roomID => {
+    let results = []
+    await Message.find({ roomID: roomID }, (error, messages) => {
+        if (error) throw error
+        for (let m of messages) {
+            let temp = {
+                username: m.username,
+                roomID: m.roomID,
+                content: m.message,
+                timestamp: m._id.getTimestamp()
+            }
+            results.push(temp)
         }
     })
+    return results
 }
 
 const setLastSeen = async (username, roomID) => {
@@ -66,12 +71,13 @@ io.on('connection', socket => {
         await io.to(roomID).emit('message', message)
     })
 
-    socket.on('join', ({ username, roomID }) => {
-        const messages = getMessages(roomID)
-        const seen = setLastSeen(username, roomID)
+    socket.on('join', async ({ username, roomID }) => {
+        const messages = await getMessages(roomID)
+        //const seen = setLastSeen(username, roomID)
         socket.join(roomID)
         io.to(roomID).emit('announce', `JOIN : ${socket.id}`)
-        socket.emit('initial', { messages, seen })
+        console.log(messages)
+        // socket.emit('initial', { messages, seen })
     })
 
     socket.on('leave', roomID => {
