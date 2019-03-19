@@ -33,7 +33,7 @@ const getMessages = roomID => {
     })
 }
 
-const seen = async (username, roomID) => {
+const setLastSeen = async (username, roomID) => {
     const seen = getSeen(username, roomID)
     seen.lastSeen = await new Date()
     await seen.save
@@ -68,7 +68,7 @@ io.on('connection', socket => {
 
     socket.on('join', ({ username, roomID }) => {
         const messages = getMessages(roomID)
-        const seen = seen(username, roomID)
+        const seen = setLastSeen(username, roomID)
         socket.join(roomID)
         io.to(roomID).emit('announce', `JOIN : ${socket.id}`)
         socket.emit('initial', { messages, seen })
