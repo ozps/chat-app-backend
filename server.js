@@ -91,13 +91,13 @@ const getLastSeen = async (username, roomID) => {
 
 const getAllGroups = async () => {
     let results = []
-    await Message.distinct('roomID', function(err, messages) {
+    await Message.distinct('roomID', function (err, messages) {
         results = messages
     })
     return results
 }
 
-const deleteJoin = async ({ username, roomID }) => {
+const deleteJoin = async (username, roomID) => {
     await Message.findOneAndDelete({ username: username, roomID: roomID })
 }
 
@@ -150,9 +150,10 @@ io.on('connection', socket => {
         await io.to(roomID).emit('announce', `EXIT : ${socket.id}`)
     })
 
-    socket.on('leave', async roomID => {
-        socket.leave(roomID)
-        await deleteJoin()
+    socket.on('leave', async (message, cb) => {
+        socket.leave(message.roomID)
+        await deleteJoin(message.username, message.roomID)
+        await cb(null)
     })
 
     socket.on('disconnect', () => {
@@ -160,6 +161,6 @@ io.on('connection', socket => {
     })
 })
 
-server.listen(5000, function() {
+server.listen(5000, function () {
     console.log('listening on *:5000')
 })
