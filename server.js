@@ -21,68 +21,88 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html')
 })
 
-const getMessages = async roomID => {
+const getMessages = async (username, roomID) => {
     let results = []
+    let time
+    await Message.find({ username: username, roomID: roomID, message: '*#Join' }, (error, messages) => {
+        if (error) throw error
+        console.log(messages)
+        if (messages.length) time = messages[0].createdAt
+    })
+    //console.log('time', typeof (time))
+    if (!time) return results;
     await Message.find({ roomID: roomID }, (error, messages) => {
         if (error) throw error
         for (let m of messages) {
-            let temp = {
-                username: m.username,
-                roomID: m.roomID,
-                content: m.message,
-                timestamp: m._id.getTimestamp()
+            if (m.createdAt > time) {
+                let temp = {
+                    username: m.username,
+                    roomID: m.roomID,
+                    content: m.message,
+                    timestamp: m.createdAt
+                }
+                results.push(temp)
             }
-            results.push(temp)
         }
     })
     return results
 }
 
-const setLastSeen = async ({ username, roomID, timestamp }) => {
-    await Seen.findOneAndUpdate(
+const setLastSeen = async (username, roomID, timestamp) => {
+    await Seen.findOne(
         { username: username, roomID: roomID },
-        { lastSeen: timestamp },
-        (error, seen) => {
+        async (error, seen) => {
             if (error) throw error
-            console.log(seen.lastSeen)
+            await console.log('Oz', seen)
+            if (seen === null) {
+                const s = new Seen({
+                    username: username,
+                    roomID: roomID,
+                    lastSeen: timestamp
+                })
+                await s.save()
+            }
+            else {
+                await Seen.findOneAndUpdate({ username: username, roomID: roomID }, { lastSeen: timestamp })
+            }
         }
     )
 }
 
-const getLastSeen = async ({ username, roomID }) => {
+const getLastSeen = async (username, roomID) => {
     let results = []
+    console.log("USER", username, roomID)
     await Seen.findOne(
         { username: username, roomID: roomID },
         (error, seen) => {
             if (error) throw error
-            results.push(seen.lastSeen)
+            console.log('seen', seen)
+            if (seen !== null) results.push(seen.lastSeen)
         }
     )
+    console.log('results', results)
     return results
 }
 
 const getAllGroups = async () => {
     let results = []
-    await Message.find({}, (error, messages) => {
-        if (error) throw error
-        for (let m of messages) {
-            if (!results.includes(m.roomID)) results.push(m.roomID)
-        }
-    })
+    await Message.distinct('roomID', function (err, messages) {
+        results = messages
+    });
     return results
 }
 
-io.set('transports', ['websocket'])
 io.on('connection', socket => {
     console.log('connected')
 
     socket.on('register', async username => {
         console.log('client register...', username)
         const groups = await getAllGroups()
-        await socket.emit('group', { groups })
+        await socket.emit('group', groups)
+        //await console.log("Debug--- ", groups)
     })
 
-    socket.on('message', async message => {
+    socket.on('message', async (message, cb) => {
         const { username, roomID, content } = message
         console.log('client send msg...', message)
         const msg = new Message({
@@ -90,25 +110,37 @@ io.on('connection', socket => {
             roomID: roomID,
             message: content
         })
-        await msg.save((err, msg) => {
-            message.timestamp = msg._id.getTimestamp()
-        })
+        await msg.save()
+        message.timestamp = await msg.createdAt
         await io.to(roomID).emit('message', message)
+        if (cb) await cb(null)
     })
 
-    socket.on('join', async ({ username, roomID }) => {
-        const messages = await getMessages(roomID)
+    socket.on('newGroup', (roomID) => {
+        console.log("new room ", roomID)
+        io.emit('group', [roomID])
+
+    })
+
+    socket.on('getMessages', async ({ username, roomID }, cb) => {
+        const messages = await getMessages(username, roomID)
         const seen = await getLastSeen(username, roomID)
-        const groups = await getAllGroups()
-        if (!groups.includes(roomID)) await groups.push(roomID)
+        await console.log('test', messages, seen)
+        await cb({ msg: messages, lastSeen: seen })
+    })
+
+    socket.on('join', async ({ username, roomID }, cb) => {
+        console.log('client join....', username, roomID)
+        //console.log(groups)
         await socket.join(roomID)
         await io.to(roomID).emit('announce', `JOIN : ${socket.id}`)
-        await socket.emit('initial', { messages, seen })
-        await socket.emit('group', { groups })
+        if (cb) await cb(null)
+
     })
 
-    socket.on('exit', async ({ username, roomID }) => {
-        await setLastSeen(username, roomID)
+    socket.on('exit', async (username, { roomID, timestamp }) => {
+        console.log(username, ' Exit')
+        await setLastSeen(username, roomID, timestamp)
         await io.to(roomID).emit('announce', `EXIT : ${socket.id}`)
     })
 
@@ -122,6 +154,6 @@ io.on('connection', socket => {
     })
 })
 
-server.listen(3000, function() {
+server.listen(3000, function () {
     console.log('listening on *:3000')
 })
