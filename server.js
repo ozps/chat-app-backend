@@ -150,7 +150,7 @@ io.on('connection', socket => {
         await io.to(roomID).emit('announce', `EXIT : ${socket.id}`)
     })
 
-    socket.on('leave', roomID => {
+    socket.on('leave', async roomID => {
         socket.leave(roomID)
         await deleteJoin()
     })
