@@ -91,7 +91,7 @@ const getLastSeen = async (username, roomID) => {
 
 const getAllGroups = async () => {
     let results = []
-    await Message.distinct('roomID', function (err, messages) {
+    await Message.distinct('roomID', function(err, messages) {
         results = messages
     })
     return results
@@ -161,6 +161,6 @@ io.on('connection', socket => {
     })
 })
 
-server.listen(5000, function () {
+server.listen(5000, function() {
     console.log('listening on *:5000')
 })
