@@ -24,13 +24,16 @@ app.get('/', (req, res) => {
 const getMessages = async (username, roomID) => {
     let results = []
     let time
-    await Message.find({ username: username, roomID: roomID, message: '*#Join' }, (error, messages) => {
-        if (error) throw error
-        console.log(messages)
-        if (messages.length) time = messages[0].createdAt
-    })
+    await Message.find(
+        { username: username, roomID: roomID, message: '*#Join' },
+        (error, messages) => {
+            if (error) throw error
+            console.log(messages)
+            if (messages.length) time = messages[0].createdAt
+        }
+    )
     //console.log('time', typeof (time))
-    if (!time) return results;
+    if (!time) return results
     await Message.find({ roomID: roomID }, (error, messages) => {
         if (error) throw error
         for (let m of messages) {
@@ -61,9 +64,11 @@ const setLastSeen = async (username, roomID, timestamp) => {
                     lastSeen: timestamp
                 })
                 await s.save()
-            }
-            else {
-                await Seen.findOneAndUpdate({ username: username, roomID: roomID }, { lastSeen: timestamp })
+            } else {
+                await Seen.findOneAndUpdate(
+                    { username: username, roomID: roomID },
+                    { lastSeen: timestamp }
+                )
             }
         }
     )
@@ -71,7 +76,7 @@ const setLastSeen = async (username, roomID, timestamp) => {
 
 const getLastSeen = async (username, roomID) => {
     let results = []
-    console.log("USER", username, roomID)
+    console.log('USER', username, roomID)
     await Seen.findOne(
         { username: username, roomID: roomID },
         (error, seen) => {
@@ -86,10 +91,14 @@ const getLastSeen = async (username, roomID) => {
 
 const getAllGroups = async () => {
     let results = []
-    await Message.distinct('roomID', function (err, messages) {
+    await Message.distinct('roomID', function(err, messages) {
         results = messages
-    });
+    })
     return results
+}
+
+const deleteJoin = async ({ username, roomID }) => {
+    await Message.findOneAndDelete({ username: username, roomID: roomID })
 }
 
 io.on('connection', socket => {
@@ -116,10 +125,9 @@ io.on('connection', socket => {
         if (cb) await cb(null)
     })
 
-    socket.on('newGroup', (roomID) => {
-        console.log("new room ", roomID)
+    socket.on('newGroup', roomID => {
+        console.log('new room ', roomID)
         io.emit('group', [roomID])
-
     })
 
     socket.on('getMessages', async ({ username, roomID }, cb) => {
@@ -132,10 +140,8 @@ io.on('connection', socket => {
     socket.on('join', async ({ username, roomID }, cb) => {
         console.log('client join....', username, roomID)
         //console.log(groups)
-        await socket.join(roomID)
-        await io.to(roomID).emit('announce', `JOIN : ${socket.id}`)
+        socket.join(roomID)
         if (cb) await cb(null)
-
     })
 
     socket.on('exit', async (username, { roomID, timestamp }) => {
@@ -146,7 +152,7 @@ io.on('connection', socket => {
 
     socket.on('leave', roomID => {
         socket.leave(roomID)
-        io.to(roomID).emit('announce', `LEAVE : ${socket.id}`)
+        await deleteJoin()
     })
 
     socket.on('disconnect', () => {
@@ -154,6 +160,6 @@ io.on('connection', socket => {
     })
 })
 
-server.listen(3000, function () {
+server.listen(3000, function() {
     console.log('listening on *:3000')
 })
