@@ -1,0 +1,1 @@
+{"command":"loadbalancer start --config path/config/loadbalancerConfig.json"},
