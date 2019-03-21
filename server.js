@@ -91,7 +91,7 @@ const getLastSeen = async (username, roomID) => {
 
 const getAllGroups = async () => {
     let results = []
-    await Message.distinct('roomID', function(err, messages) {
+    await Message.distinct('roomID', function (err, messages) {
         results = messages
     })
     return results
@@ -102,7 +102,15 @@ const deleteJoin = async (username, roomID) => {
 }
 
 io.on('connection', socket => {
-    console.log('connected')
+    console.log('connected-->', socket)
+    Message.find({ message: '*#Join', socket }, (error, messages) => {
+        console.log('sdfgdfg')
+        for (let m of messages) {
+            console.log(m.roomID)
+            socket.join(m.roomID)
+        }
+    })
+
 
     socket.on('register', async username => {
         console.log('client register...', username)
@@ -117,7 +125,8 @@ io.on('connection', socket => {
         const msg = new Message({
             username: username,
             roomID: roomID,
-            message: content
+            message: content,
+            socket: socket
         })
         await msg.save()
         message.timestamp = await msg.createdAt
@@ -161,6 +170,6 @@ io.on('connection', socket => {
     })
 })
 
-server.listen(5000, function() {
+server.listen(5000, function () {
     console.log('listening on *:5000')
 })
